@@ -17,3 +17,8 @@ type Queue struct {
 	Type      QueueType
 	CreatedAt time.Time
 }
+
+type CreateQueueRequest struct {
+	Name string
+	Type QueueType
+}

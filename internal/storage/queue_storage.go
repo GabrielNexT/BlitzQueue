@@ -8,19 +8,17 @@ import (
 	"github.com/pelletier/go-toml/v2"
 	"log"
 	"os"
-	"sync"
 	"time"
 )
 
 var ErrQueueNotExist = errors.New("queue not exist")
-var ErrQueueAlreadyExist = errors.New("queue already exist")
 
 type QueueStorage interface {
 	CreateQueue(name string, queueType model.QueueType) (*model.Queue, error)
+	GetQueueByName(name string) (*model.Queue, error)
 }
 
 type queueStorage struct {
-	sync.Mutex
 }
 
 func NewQueueStorage() QueueStorage {
@@ -28,11 +26,6 @@ func NewQueueStorage() QueueStorage {
 }
 
 func (s *queueStorage) CreateQueue(name string, queueType model.QueueType) (*model.Queue, error) {
-
-	if _, err := s.GetQueueByName(name); err == nil {
-		return nil, ErrQueueAlreadyExist
-	}
-
 	id, _ := uuid.NewV7()
 	q := &model.Queue{
 		Id:        id.String(),
