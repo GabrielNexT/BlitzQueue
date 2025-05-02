@@ -14,6 +14,9 @@ func main() {
 
 	router.POST("/queue", queueService.CreateQueue)
 	router.GET("/queue/:name", queueService.GetQueueByName)
+	router.POST("/queue/:name/push", queueService.PushMessages)
+	router.GET("/queue/:name/peek", queueService.PeekMessages)
+	router.GET("/queue/:name/consume", queueService.ConsumeMessages)
 
 	err := router.Run(":52525")
 

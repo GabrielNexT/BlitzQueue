@@ -4,18 +4,28 @@ import (
 	"BlitzQueue/internal/model"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
+	"github.com/oklog/ulid/v2"
 	"github.com/pelletier/go-toml/v2"
 	"log"
 	"os"
 	"time"
 )
 
+const QueuesPath = "bq_data/queues"
+
+func init() {
+	err := os.MkdirAll(QueuesPath, os.ModePerm)
+	if err != nil && !os.IsExist(err) {
+		panic(err)
+	}
+}
+
 var ErrQueueNotExist = errors.New("queue not exist")
 
 type QueueStorage interface {
 	CreateQueue(name string, queueType model.QueueType) (*model.Queue, error)
 	GetQueueByName(name string) (*model.Queue, error)
+	GetMessageStorage(queue *model.Queue) (MessageStorage, error)
 }
 
 type queueStorage struct {
@@ -26,9 +36,8 @@ func NewQueueStorage() QueueStorage {
 }
 
 func (s *queueStorage) CreateQueue(name string, queueType model.QueueType) (*model.Queue, error) {
-	id, _ := uuid.NewV7()
 	q := &model.Queue{
-		Id:        id.String(),
+		Id:        ulid.Make().String(),
 		Name:      name,
 		Type:      queueType,
 		CreatedAt: time.Now(),
@@ -40,7 +49,7 @@ func (s *queueStorage) CreateQueue(name string, queueType model.QueueType) (*mod
 		panic(err)
 	}
 
-	path := fmt.Sprintf("queues/%s.toml", name)
+	path := fmt.Sprintf("%s/%s.toml", QueuesPath, name)
 	err = os.WriteFile(path, tomlData, os.ModePerm)
 	if err != nil {
 		log.Println(err)
@@ -51,7 +60,7 @@ func (s *queueStorage) CreateQueue(name string, queueType model.QueueType) (*mod
 }
 
 func (s *queueStorage) GetQueueByName(name string) (*model.Queue, error) {
-	path := fmt.Sprintf("queues/%s.toml", name)
+	path := fmt.Sprintf("%s/%s.toml", QueuesPath, name)
 
 	data, err := os.ReadFile(path)
 
@@ -75,14 +84,12 @@ func (s *queueStorage) GetQueueByName(name string) (*model.Queue, error) {
 	return q, nil
 }
 
-func createFolderIfNotExists() {
-	err := os.Mkdir("queues", os.ModePerm)
-	if err != nil && !os.IsExist(err) {
-		panic(err)
-	}
-}
+func (s *queueStorage) GetMessageStorage(queue *model.Queue) (MessageStorage, error) {
+	messageStorage, err := NewMessageSqliteStorage(queue)
 
-func init() {
-	uuid.EnableRandPool()
-	createFolderIfNotExists()
+	if err != nil {
+		return nil, err
+	}
+
+	return messageStorage, nil
 }
