@@ -2,6 +2,7 @@ package main
 
 import (
 	service "BlitzQueue/internal/service/queue"
+	"BlitzQueue/internal/service/writer"
 	"BlitzQueue/internal/storage"
 	"github.com/gin-gonic/gin"
 )
@@ -10,7 +11,8 @@ func main() {
 	router := gin.Default()
 
 	queueStorage := storage.NewQueueStorage()
-	queueService := service.NewQueueService(queueStorage)
+	writerService := writer.NewWriterService(queueStorage)
+	queueService := service.NewQueueService(queueStorage, writerService)
 
 	router.POST("/queue", queueService.CreateQueue)
 	router.GET("/queue/:name", queueService.GetQueueByName)

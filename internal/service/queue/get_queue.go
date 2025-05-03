@@ -6,6 +6,7 @@ import (
 	"errors"
 	"github.com/gin-gonic/gin"
 	"strings"
+	"unicode"
 )
 
 func (s *queueService) GetQueueByName(c *gin.Context) {
@@ -21,8 +22,8 @@ func (s *queueService) GetQueueByName(c *gin.Context) {
 func (s *queueService) getQueueByNameFromContext(c *gin.Context) (*model.Queue, error) {
 	queueName := c.Param("name")
 
-	if strings.TrimSpace(queueName) == "" {
-		httpError := model.CreateBadRequestError("queue name cannot be empty")
+	if err := validateQueueName(queueName); err != nil {
+		httpError := model.CreateBadRequestError(err.Error())
 		model.ErrorResponse(c, httpError)
 		return nil, httpError.Error()
 	}
@@ -44,4 +45,19 @@ func (s *queueService) getQueueByNameFromContext(c *gin.Context) (*model.Queue, 
 	}
 
 	return queue, nil
+}
+
+func validateQueueName(queueName string) error {
+	if strings.TrimSpace(queueName) == "" {
+		return errors.New("queue name cannot be empty")
+	}
+
+	for _, char := range queueName {
+		if unicode.IsLetter(char) || unicode.IsNumber(char) || char == '-' || char == '_' {
+			continue
+		}
+		return errors.New("queue name can only contain letters and numbers")
+	}
+
+	return nil
 }

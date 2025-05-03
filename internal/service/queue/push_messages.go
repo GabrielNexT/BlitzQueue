@@ -7,6 +7,8 @@ import (
 	"log/slog"
 )
 
+type pushMessageOkResponse struct{}
+
 func (s *queueService) PushMessages(c *gin.Context) {
 	log := logger.GetLogger()
 	queue, err := s.getQueueByNameFromContext(c)
@@ -19,7 +21,7 @@ func (s *queueService) PushMessages(c *gin.Context) {
 	log = log.With(slog.String("queueName", queue.Name))
 	log.Debug("got queue from path param")
 
-	queueStorage, err := s.queueStorage.GetMessageStorage(queue)
+	_, err = s.queueStorage.GetMessageStorage(queue)
 
 	if err != nil {
 		httpError := model.CreateInternalServerError("error getting message storage")
@@ -34,6 +36,7 @@ func (s *queueService) PushMessages(c *gin.Context) {
 	err = c.BindJSON(&messagesRequest)
 
 	if err != nil {
+		log.Error("error parsing request body", slog.String("error", err.Error()))
 		httpError := model.CreateInternalServerError("error parsing request body")
 		model.ErrorResponse(c, httpError)
 		return
@@ -44,7 +47,7 @@ func (s *queueService) PushMessages(c *gin.Context) {
 		messagesToPush[idx] = model.CreateMessageFromRequest(message)
 	}
 
-	err = queueStorage.PushMessages(messagesToPush...)
+	err = s.writerService.PushMessages(queue, messagesToPush...)
 
 	if err != nil {
 		httpError := model.CreateInternalServerError("error pushing messages")
@@ -52,4 +55,5 @@ func (s *queueService) PushMessages(c *gin.Context) {
 		return
 	}
 
+	c.JSON(200, pushMessageOkResponse{})
 }

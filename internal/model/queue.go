@@ -18,6 +18,10 @@ type Queue struct {
 	CreatedAt time.Time
 }
 
+func (q *Queue) CanUseBuffer() bool {
+	return q.Type == QueueTypeStandard
+}
+
 type CreateQueueRequest struct {
 	Name string
 	Type QueueType
