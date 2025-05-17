@@ -13,26 +13,20 @@ const (
 	MessageStatusProcessed
 )
 
-type CreateMessageRequest struct {
-	Data     string
-	Priority int
-}
-
 type Message struct {
 	Id        string
 	QueueId   *string
 	Data      string
-	Status    MessageStatus `gorm:"index"`
+	Status    MessageStatus `gorm:"index:status_lock_until_idx,priority:1"`
 	Hash      *string       // Only for unique queue config
 	Priority  *int          // Only for the priority queue type
 	NextRun   *time.Time    // Enable only when queue backoff is enable
-	LockUntil *time.Time    `gorm:"index"`
+	LockUntil *time.Time    `gorm:"index:status_lock_until_idx,priority:2"`
 }
 
-type ConsumeMessageResponse struct {
-	Id        string
-	Data      string
-	LockUntil time.Time
+type CreateMessageRequest struct {
+	Data     string
+	Priority int
 }
 
 func CreateMessageFromRequest(request CreateMessageRequest) *Message {
@@ -42,4 +36,14 @@ func CreateMessageFromRequest(request CreateMessageRequest) *Message {
 		Status: MessageStatusInQueue,
 	}
 	return message
+}
+
+type ConsumeMessageResponse struct {
+	Id        string
+	Data      string
+	LockUntil time.Time
+}
+
+type ConfirmMessagesRequest struct {
+	MessageIds []string
 }

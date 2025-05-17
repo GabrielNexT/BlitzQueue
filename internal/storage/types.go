@@ -7,4 +7,30 @@ type MessageStorage interface {
 	PeekMessages() ([]*model.Message, error)
 	GetType() string
 	ConsumeMessages() ([]*model.ConsumeMessageResponse, error)
+	ConfirmMessagesByIds(messageIds []string) *MessageStorageError
+}
+
+type MessageStorageErrorType int8
+
+const (
+	ErrMessageDoesNotExist = iota
+	ErrInternalError
+	ErrMessageAlreadyProcessed
+	ErrMessageIsNotInProcessingState
+)
+
+type MessageStorageError struct {
+	Message string
+	Type    MessageStorageErrorType
+}
+
+func (e *MessageStorageError) Error() string {
+	return e.Message
+}
+
+func NewMessageStorageError(message string, errorType MessageStorageErrorType) *MessageStorageError {
+	return &MessageStorageError{
+		Message: message,
+		Type:    errorType,
+	}
 }

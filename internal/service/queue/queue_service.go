@@ -12,6 +12,7 @@ type QueueService interface {
 	PushMessages(c *gin.Context)
 	PeekMessages(c *gin.Context)
 	ConsumeMessages(c *gin.Context)
+	ConfirmMessages(c *gin.Context)
 }
 type queueService struct {
 	queueStorage  storage.QueueStorage

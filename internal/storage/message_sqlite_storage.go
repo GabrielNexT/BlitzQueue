@@ -56,7 +56,7 @@ func (s *messageSqliteStorage) PushMessages(messages ...*model.Message) error {
 
 func (s *messageSqliteStorage) PeekMessages() ([]*model.Message, error) {
 	var messages []*model.Message
-	res := s.db.Order("id asc").Limit(20).Find(&messages)
+	res := s.db.Where("status = ?", model.MessageStatusInQueue).Order("id asc").Limit(20).Find(&messages)
 
 	if res.Error != nil {
 		return nil, res.Error
@@ -116,6 +116,53 @@ func (s *messageSqliteStorage) ConsumeMessages() ([]*model.ConsumeMessageRespons
 	}
 
 	return consumeMessages, nil
+}
+
+func (s *messageSqliteStorage) ConfirmMessagesByIds(messageIds []string) *MessageStorageError {
+	messages, err := s.GetMessagesByIds(messageIds)
+
+	if err != nil {
+		return err
+	}
+
+	idDict := make(map[string]bool)
+
+	for _, message := range messages {
+		if message.Status == model.MessageStatusProcessed {
+			return NewMessageStorageError(fmt.Sprintf("message with id %s already processed", message.Id), ErrMessageAlreadyProcessed)
+		}
+
+		if message.Status == model.MessageStatusInQueue {
+			return NewMessageStorageError(fmt.Sprintf("message with id %s is still in queue and not being processed", message.Id), ErrMessageIsNotInProcessingState)
+		}
+
+		idDict[message.Id] = true
+	}
+
+	for _, messageId := range messageIds {
+		if _, ok := idDict[messageId]; !ok {
+			return NewMessageStorageError(fmt.Sprintf("message with id %s not found", messageId), ErrMessageDoesNotExist)
+		}
+	}
+
+	res := s.db.Model(&model.Message{}).Where("id in ?", messageIds).Update("status", model.MessageStatusProcessed)
+
+	if res.Error != nil {
+		return NewMessageStorageError(res.Error.Error(), ErrInternalError)
+	}
+
+	return nil
+}
+
+func (s *messageSqliteStorage) GetMessagesByIds(messageIds []string) ([]*model.Message, *MessageStorageError) {
+	var messages []*model.Message
+	res := s.db.Where("id in ?", messageIds).Find(&messages)
+
+	if res.Error != nil {
+		return nil, NewMessageStorageError(res.Error.Error(), ErrInternalError)
+	}
+
+	return messages, nil
 }
 
 func (s *messageSqliteStorage) GetType() string {
