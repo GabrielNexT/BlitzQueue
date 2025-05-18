@@ -47,3 +47,7 @@ type ConsumeMessageResponse struct {
 type ConfirmMessagesRequest struct {
 	MessageIds []string
 }
+
+type ExtendMessageTimeRequest struct {
+	MessageIds []string
+}

@@ -8,7 +8,7 @@ import (
 	"log/slog"
 )
 
-func (s *queueService) ConfirmMessages(c *gin.Context) {
+func (s *queueService) ExtendMessageTime(c *gin.Context) {
 	log := logger.GetLogger()
 	queue, err := s.getQueueByNameFromContext(c)
 
@@ -28,9 +28,10 @@ func (s *queueService) ConfirmMessages(c *gin.Context) {
 		log.Error("error getting message storage")
 		return
 	}
+
 	log.Debug("got storage for queue")
 
-	var request model.ConfirmMessagesRequest
+	var request model.ExtendMessageTimeRequest
 
 	err = c.BindJSON(&request)
 
@@ -41,7 +42,7 @@ func (s *queueService) ConfirmMessages(c *gin.Context) {
 		return
 	}
 
-	storageError := queueStorage.ConfirmMessagesByIds(request.MessageIds)
+	storageError := queueStorage.GetMoreTimeByIds(request.MessageIds)
 
 	if storageError == nil {
 		c.JSON(200, nil)
@@ -54,7 +55,7 @@ func (s *queueService) ConfirmMessages(c *gin.Context) {
 		return
 	}
 
-	log.Error("error confirming messages", slog.String("error", storageError.Error()))
+	log.Error("error extending time", slog.String("error", storageError.Error()))
 	httpError := model.CreateInternalServerError(storageError.Message)
 	model.ErrorResponse(c, httpError)
 	return

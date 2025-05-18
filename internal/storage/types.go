@@ -8,6 +8,7 @@ type MessageStorage interface {
 	GetType() string
 	ConsumeMessages() ([]*model.ConsumeMessageResponse, error)
 	ConfirmMessagesByIds(messageIds []string) *MessageStorageError
+	GetMoreTimeByIds(messageIds []string) *MessageStorageError
 }
 
 type MessageStorageErrorType int8
