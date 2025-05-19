@@ -48,8 +48,30 @@ func NewMessageSqliteStorage(queue *model.Queue) (MessageStorage, error) {
 }
 
 func (s *messageSqliteStorage) PushMessages(messages ...*model.Message) error {
-	result := s.db.Create(messages)
-	return result.Error
+
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		if s.queue.UseUniqueMessage == true {
+			messages = model.RemoveDuplicatesByHash(messages)
+			hashes := model.GetHashList(messages)
+
+			existingMessages, err := getPendingMessagesByHash(tx, hashes...)
+
+			if err != nil {
+				return err
+			}
+
+			messages = model.FilterUniqueMessages(messages, existingMessages, s.queue)
+		}
+
+		if len(messages) == 0 {
+			return nil
+		}
+
+		result := tx.Create(messages)
+
+		return result.Error
+	})
+
 }
 
 func (s *messageSqliteStorage) PeekMessages() ([]*model.Message, error) {
@@ -221,6 +243,17 @@ func getNextMessages(db *gorm.DB) ([]*model.Message, error) {
 func getMessagesByIds(db *gorm.DB, messageIds []string) ([]*model.Message, *MessageStorageError) {
 	var messages []*model.Message
 	res := db.Where("id in ?", messageIds).Find(&messages)
+
+	if res.Error != nil {
+		return nil, NewMessageStorageError(res.Error.Error(), ErrInternalError)
+	}
+
+	return messages, nil
+}
+
+func getPendingMessagesByHash(db *gorm.DB, hash ...string) ([]*model.Message, *MessageStorageError) {
+	var messages []*model.Message
+	res := db.Where("hash in ?", hash).Find(&messages)
 
 	if res.Error != nil {
 		return nil, NewMessageStorageError(res.Error.Error(), ErrInternalError)

@@ -44,7 +44,7 @@ func (s *queueService) PushMessages(c *gin.Context) {
 
 	messagesToPush := make([]*model.Message, len(messagesRequest))
 	for idx, message := range messagesRequest {
-		messagesToPush[idx] = model.CreateMessageFromRequest(message)
+		messagesToPush[idx] = model.CreateMessageFromRequest(message, queue)
 	}
 
 	err = s.writerService.PushMessages(queue, messagesToPush...)

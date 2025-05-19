@@ -23,7 +23,7 @@ func init() {
 var ErrQueueNotExist = errors.New("queue not exist")
 
 type QueueStorage interface {
-	CreateQueue(name string, queueType model.QueueType) (*model.Queue, error)
+	CreateQueue(*model.Queue) (*model.Queue, error)
 	GetQueueByName(name string) (*model.Queue, error)
 	GetMessageStorage(queue *model.Queue) (MessageStorage, error)
 }
@@ -35,13 +35,9 @@ func NewQueueStorage() QueueStorage {
 	return &queueStorage{}
 }
 
-func (s *queueStorage) CreateQueue(name string, queueType model.QueueType) (*model.Queue, error) {
-	q := &model.Queue{
-		Id:        ulid.Make().String(),
-		Name:      name,
-		Type:      queueType,
-		CreatedAt: time.Now(),
-	}
+func (s *queueStorage) CreateQueue(q *model.Queue) (*model.Queue, error) {
+	q.Id = ulid.Make().String()
+	q.CreatedAt = time.Now()
 
 	tomlData, err := toml.Marshal(q)
 
@@ -49,7 +45,7 @@ func (s *queueStorage) CreateQueue(name string, queueType model.QueueType) (*mod
 		panic(err)
 	}
 
-	path := fmt.Sprintf("%s/%s.toml", QueuesPath, name)
+	path := fmt.Sprintf("%s/%s.toml", QueuesPath, q.Name)
 	err = os.WriteFile(path, tomlData, os.ModePerm)
 	if err != nil {
 		log.Println(err)

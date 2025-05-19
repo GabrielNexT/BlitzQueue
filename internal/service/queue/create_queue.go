@@ -28,7 +28,13 @@ func (s *queueService) CreateQueue(c *gin.Context) {
 		return
 	}
 
-	q, err = s.queueStorage.CreateQueue(request.Name, request.Type)
+	queue := &model.Queue{
+		Name:             request.Name,
+		Type:             request.Type,
+		UseUniqueMessage: request.UseUniqueMessage,
+	}
+
+	q, err = s.queueStorage.CreateQueue(queue)
 
 	if err != nil {
 		httpError := model.CreateBadRequestError("failed to create queue")
