@@ -15,7 +15,7 @@ const (
 )
 
 type Message struct {
-	Id        string
+	Id        string `gorm:"index:queue_id_idx,priority:1"`
 	QueueId   *string
 	Data      string
 	Status    MessageStatus `gorm:"index:status_lock_until_idx,priority:1"`
@@ -23,12 +23,14 @@ type Message struct {
 	Priority  *int          // Only for the priority queue type
 	NextRun   *time.Time    // Enable only when queue backoff is enable
 	LockUntil *time.Time    `gorm:"index:status_lock_until_idx,priority:2"`
+	SubQueue  string        `gorm:"index:queue_id_idx,priority:2"`
 }
 
 type CreateMessageRequest struct {
 	Data             string
 	Priority         int
 	DeduplicationKey string
+	SubQueue         string
 }
 
 func CreateMessageFromRequest(request CreateMessageRequest, queue *Queue) *Message {
@@ -47,6 +49,10 @@ func CreateMessageFromRequest(request CreateMessageRequest, queue *Queue) *Messa
 
 	if queue.Type == QueueTypePriority {
 		message.Priority = &request.Priority
+	}
+
+	if queue.Type == QueueTypeFifo {
+		message.SubQueue = request.SubQueue
 	}
 
 	return message

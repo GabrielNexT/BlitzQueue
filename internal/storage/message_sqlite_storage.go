@@ -75,7 +75,7 @@ func (s *messageSqliteStorage) PushMessages(messages ...*model.Message) error {
 }
 
 func (s *messageSqliteStorage) PeekMessages() ([]*model.Message, error) {
-	messages, err := getNextMessages(s.db)
+	messages, err := s.getNextMessages(s.db)
 
 	if err != nil {
 		return nil, err
@@ -92,7 +92,7 @@ func (s *messageSqliteStorage) ConsumeMessages() ([]*model.ConsumeMessageRespons
 	var consumeMessages []*model.ConsumeMessageResponse
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
-		messages, err := getNextMessages(tx)
+		messages, err := s.getNextMessages(tx)
 
 		if err != nil {
 			return err
@@ -231,12 +231,30 @@ func (s *messageSqliteStorage) GetType() string {
 	return "sqlite"
 }
 
-func getNextMessages(db *gorm.DB) ([]*model.Message, error) {
+func (s *messageSqliteStorage) getNextMessages(db *gorm.DB) ([]*model.Message, error) {
 	var messages []*model.Message
-	res := db.Where("status = ? or (status = ? and lock_until <= ?)", model.MessageStatusInQueue, model.MessageStatusProcessing, time.Now()).
-		Order("id asc").
-		Limit(20).
-		Find(&messages)
+
+	var res *gorm.DB
+
+	switch s.queue.Type {
+	case model.QueueTypeStandard:
+		res = db.Where("status = ? or (status = ? and lock_until <= ?)", model.MessageStatusInQueue, model.MessageStatusProcessing, time.Now()).
+			Order("id asc").
+			Limit(20).
+			Find(&messages)
+	case model.QueueTypeFifo:
+		res = db.
+			Raw(`
+				select *
+				from messages m
+						 join (select min(id) as id, sub_queue from messages where status != 2 group by sub_queue) am on m.id = am.id
+				where status = ?
+				   or (status = ? and lock_until <= ?)
+				limit 20`, model.MessageStatusInQueue, model.MessageStatusProcessing, time.Now()).
+			Scan(&messages)
+	default:
+		panic("invalid queue type")
+	}
 	return messages, res.Error
 }
 
