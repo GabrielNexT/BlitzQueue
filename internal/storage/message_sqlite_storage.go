@@ -252,6 +252,12 @@ func (s *messageSqliteStorage) getNextMessages(db *gorm.DB) ([]*model.Message, e
 				   or (status = ? and lock_until <= ?)
 				limit 20`, model.MessageStatusInQueue, model.MessageStatusProcessing, time.Now()).
 			Scan(&messages)
+	case model.QueueTypePriority:
+		res = db.Where("status = ? or (status = ? and lock_until <= ?)", model.MessageStatusInQueue, model.MessageStatusProcessing, time.Now()).
+			Order("priority desc").
+			Limit(20).
+			Find(&messages)
+
 	default:
 		panic("invalid queue type")
 	}

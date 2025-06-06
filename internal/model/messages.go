@@ -18,10 +18,9 @@ type Message struct {
 	Id        string `gorm:"index:queue_id_idx,priority:1"`
 	QueueId   *string
 	Data      string
-	Status    MessageStatus `gorm:"index:status_lock_until_idx,priority:1"`
-	Hash      string        `gorm:"index"` // Only for unique queue config
-	Priority  *int          // Only for the priority queue type
-	NextRun   *time.Time    // Enable only when queue backoff is enable
+	Status    MessageStatus `gorm:"index:status_lock_until_idx,priority:1;index:queue_status_priority_idx,priority:1"`
+	Hash      string        `gorm:"index"`                                                // Only for unique queue config
+	Priority  *int          `gorm:"index:queue_status_priority_idx,sort:desc,priority:2"` // Only for the priority queue type
 	LockUntil *time.Time    `gorm:"index:status_lock_until_idx,priority:2"`
 	SubQueue  string        `gorm:"index:queue_id_idx,priority:2"`
 }
