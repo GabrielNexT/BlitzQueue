@@ -42,7 +42,7 @@ func (s *queueService) ExtendMessageTime(c *gin.Context) {
 		return
 	}
 
-	storageError := queueStorage.GetMoreTimeByIds(request.MessageIds)
+	storageError := queueStorage.GetMoreTimeByIds(1, request.MessageIds)
 
 	if storageError == nil {
 		c.JSON(200, nil)

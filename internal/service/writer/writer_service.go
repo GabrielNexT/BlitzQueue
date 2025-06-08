@@ -4,6 +4,7 @@ import (
 	"BlitzQueue/internal/logger"
 	"BlitzQueue/internal/model"
 	"BlitzQueue/internal/storage"
+	"context"
 	"errors"
 	"log/slog"
 	"math/rand"
@@ -17,39 +18,48 @@ var emptyBufferErr = errors.New("queue buffer is empty")
 
 type WriterService interface {
 	PushMessages(queue *model.Queue, messages ...*model.Message) error
+	GetStopChannel() chan bool
 }
 
 type writerService struct {
+	ctx context.Context
 	sync.Mutex
 	queueStorage storage.QueueStorage
 	buffer       map[string][]*model.Message
 	bufferLock   map[string]*sync.Mutex
 	log          *slog.Logger
+	doneChan     chan bool
 }
 
-func NewWriterService(queueStorage storage.QueueStorage) WriterService {
-	return &writerService{
+func NewWriterService(ctx context.Context, queueStorage storage.QueueStorage) WriterService {
+	writer := &writerService{
+		ctx:          ctx,
 		queueStorage: queueStorage,
 		buffer:       make(map[string][]*model.Message),
 		bufferLock:   make(map[string]*sync.Mutex),
 		log:          logger.GetLogger(),
+		doneChan:     make(chan bool, 1),
 	}
+
+	writer.gracefulShutdown()
+
+	return writer
 }
 
 // TODO: Quando o software reeber um SIGTERM, precisamos salvar todas as mensagens do buffer antes de encerrar
 func (s *writerService) PushMessages(queue *model.Queue, messages ...*model.Message) error {
 	s.Lock()
-	queueMutex, ok := s.bufferLock[queue.Id]
+	queueMutex, ok := s.bufferLock[queue.Name]
 	if !ok {
-		s.buffer[queue.Id] = make([]*model.Message, 0, DefaultBufferSize)
+		s.buffer[queue.Name] = make([]*model.Message, 0, DefaultBufferSize)
 		queueMutex = &sync.Mutex{}
-		s.bufferLock[queue.Id] = queueMutex
+		s.bufferLock[queue.Name] = queueMutex
 		go s.flushMessagesPeriodically(queue)
 	}
 	s.Unlock()
 
 	queueMutex.Lock()
-	s.buffer[queue.Id] = append(s.buffer[queue.Id], messages...)
+	s.buffer[queue.Name] = append(s.buffer[queue.Name], messages...)
 	queueMutex.Unlock()
 
 	return nil
@@ -70,28 +80,29 @@ func (s *writerService) flushMessagesPeriodically(queue *model.Queue) {
 				if emptyCount >= 100 {
 					ticker.Stop()
 					s.deleteQueueBuffer(queue)
-					s.log.Info("stopped flushing messages for queue", slog.String("queueId", queue.Id))
+					s.log.Info("stopped flushing messages for queue", slog.String("queueName", queue.Name))
 				}
 				continue
 			}
 			if err != nil {
-				s.log.Error("error flushing messages for queue", slog.String("queueId", queue.Id), slog.String("error", err.Error()))
+				s.log.Error("error flushing messages for queue", slog.String("queueName", queue.Name), slog.String("error", err.Error()))
 			}
 		}
 	}
 }
 
 func (s *writerService) flushMessages(queue *model.Queue) error {
-	log := s.log.With(slog.String("queueId", queue.Id))
+	log := s.log.With(slog.String("queueName", queue.Name))
 
-	queueLock, ok := s.bufferLock[queue.Id]
+	s.Lock()
+	queueLock, ok := s.bufferLock[queue.Name]
 	if !ok {
-		log.Error("failed to get lock for queue", slog.String("queueId", queue.Id))
-		return errors.New("failed to get lock for queue")
+		return nil
 	}
+	s.Unlock()
 	queueLock.Lock()
 	defer queueLock.Unlock()
-	messages := s.buffer[queue.Id]
+	messages := s.buffer[queue.Name]
 	if len(messages) == 0 {
 		return emptyBufferErr
 	}
@@ -111,20 +122,66 @@ func (s *writerService) flushMessages(queue *model.Queue) error {
 		return err
 	}
 
-	s.buffer[queue.Id] = make([]*model.Message, 0, DefaultBufferSize)
+	s.buffer[queue.Name] = make([]*model.Message, 0, DefaultBufferSize)
 
 	return nil
 }
 
 func (s *writerService) deleteQueueBuffer(queue *model.Queue) {
 	s.Lock()
-	defer s.Unlock()
-	queueMutex, ok := s.bufferLock[queue.Id]
+	queueMutex, ok := s.bufferLock[queue.Name]
 	if !ok {
 		return
 	}
+	s.Unlock()
+	err := s.flushMessages(queue)
+	if err != nil {
+		s.log.Error("error flushing messages for queue", slog.String("queueName", queue.Name), slog.String("error", err.Error()))
+	}
+	s.log.Info("deleting queue buffer", slog.String("queueName", queue.Name))
+
+	s.Lock()
 	queueMutex.Lock()
-	defer queueMutex.Unlock()
-	delete(s.buffer, queue.Id)
-	delete(s.bufferLock, queue.Id)
+	delete(s.buffer, queue.Name)
+	delete(s.bufferLock, queue.Name)
+	queueMutex.Unlock()
+	s.Unlock()
+}
+
+func (s *writerService) listAllQueues() []*model.Queue {
+	res := make([]*model.Queue, 0, len(s.buffer))
+	s.Lock()
+	for queueName := range s.bufferLock {
+		queue, err := s.queueStorage.GetQueueByName(queueName)
+		if err != nil {
+			s.log.Error("error getting queue from storage", slog.String("queueName", queueName), slog.String("error", err.Error()))
+			continue
+		}
+		res = append(res, queue)
+	}
+	s.Unlock()
+	return res
+}
+
+func (s *writerService) gracefulShutdown() {
+
+	go func() {
+		for {
+			select {
+			case <-s.ctx.Done():
+				s.log.Info("shutting down writer service")
+				queues := s.listAllQueues()
+				for _, queue := range queues {
+					s.deleteQueueBuffer(queue)
+				}
+				s.doneChan <- true
+				return
+			}
+		}
+	}()
+
+}
+
+func (s *writerService) GetStopChannel() chan bool {
+	return s.doneChan
 }

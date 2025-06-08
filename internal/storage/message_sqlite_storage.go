@@ -182,7 +182,7 @@ func (s *messageSqliteStorage) GetMessagesByIds(messageIds []string) ([]*model.M
 	return getMessagesByIds(s.db, messageIds)
 }
 
-func (s *messageSqliteStorage) GetMoreTimeByIds(messageIds []string) *MessageStorageError {
+func (s *messageSqliteStorage) GetMoreTimeByIds(amount int, messageIds []string) *MessageStorageError {
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		messages, err := getMessagesByIds(tx, messageIds)
@@ -209,7 +209,7 @@ func (s *messageSqliteStorage) GetMoreTimeByIds(messageIds []string) *MessageSto
 			}
 		}
 
-		lockUntil := time.Now().Add(time.Minute)
+		lockUntil := time.Now().Add(time.Minute * time.Duration(amount))
 
 		res := updateLockUntilByIdsTransaction(tx, messageIds, lockUntil)
 
