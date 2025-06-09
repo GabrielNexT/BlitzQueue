@@ -12,12 +12,13 @@ import (
 )
 
 func main() {
-	router := gin.Default()
 	ctx := createContext()
 
 	queueStorage := storage.NewQueueStorage()
 	writerService := writer.NewWriterService(ctx, queueStorage)
 	queueService := service.NewQueueService(queueStorage, writerService)
+
+	router := gin.Default()
 
 	router.POST("/queue", queueService.CreateQueue)
 	router.GET("/queue/:name", queueService.GetQueueByName)
