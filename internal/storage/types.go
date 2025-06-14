@@ -7,6 +7,7 @@ type MessageStorage interface {
 	PeekMessages() ([]*model.Message, error)
 	GetType() string
 	ConsumeMessages() ([]*model.ConsumeMessageResponse, error)
+	ConsumeMessagesWithCustomTime(minutes int) ([]*model.ConsumeMessageResponse, error)
 	ConfirmMessagesByIds(messageIds []string) *MessageStorageError
 	GetMoreTimeByIds(minutes int, messageIds []string) *MessageStorageError
 }

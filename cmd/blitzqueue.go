@@ -2,6 +2,7 @@ package main
 
 import (
 	service "BlitzQueue/internal/service/queue"
+	"BlitzQueue/internal/service/reader"
 	"BlitzQueue/internal/service/writer"
 	"BlitzQueue/internal/storage"
 	"context"
@@ -16,7 +17,8 @@ func main() {
 
 	queueStorage := storage.NewQueueStorage()
 	writerService := writer.NewWriterService(ctx, queueStorage)
-	queueService := service.NewQueueService(queueStorage, writerService)
+	readerService := reader.NewReaderService(ctx, queueStorage)
+	queueService := service.NewQueueService(queueStorage, writerService, readerService)
 
 	router := gin.Default()
 

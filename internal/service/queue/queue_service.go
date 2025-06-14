@@ -1,6 +1,7 @@
 package service
 
 import (
+	"BlitzQueue/internal/service/reader"
 	"BlitzQueue/internal/service/writer"
 	"BlitzQueue/internal/storage"
 	"github.com/gin-gonic/gin"
@@ -18,11 +19,13 @@ type QueueService interface {
 type queueService struct {
 	queueStorage  storage.QueueStorage
 	writerService writer.WriterService
+	readerService reader.ReaderService
 }
 
-func NewQueueService(queueStorage storage.QueueStorage, writerService writer.WriterService) QueueService {
+func NewQueueService(queueStorage storage.QueueStorage, writerService writer.WriterService, readerService reader.ReaderService) QueueService {
 	return &queueService{
 		queueStorage:  queueStorage,
 		writerService: writerService,
+		readerService: readerService,
 	}
 }

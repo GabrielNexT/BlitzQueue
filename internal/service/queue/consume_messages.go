@@ -19,18 +19,7 @@ func (s *queueService) ConsumeMessages(c *gin.Context) {
 	log = log.With(slog.String("queueName", queue.Name))
 	log.Debug("got queue from path param")
 
-	queueStorage, err := s.queueStorage.GetMessageStorage(queue)
-
-	if err != nil {
-		httpError := model.CreateInternalServerError("error getting message storage")
-		model.ErrorResponse(c, httpError)
-		log.Error("error getting message storage")
-		return
-	}
-
-	log.Debug("got storage for queue")
-
-	messages, err := queueStorage.ConsumeMessages()
+	messages, err := s.readerService.ConsumeMessages(queue)
 
 	if err != nil {
 		httpError := model.CreateInternalServerError("error consuming messages")

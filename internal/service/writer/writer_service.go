@@ -46,7 +46,6 @@ func NewWriterService(ctx context.Context, queueStorage storage.QueueStorage) Wr
 	return writer
 }
 
-// TODO: Quando o software reeber um SIGTERM, precisamos salvar todas as mensagens do buffer antes de encerrar
 func (s *writerService) PushMessages(queue *model.Queue, messages ...*model.Message) error {
 	s.Lock()
 	queueMutex, ok := s.bufferLock[queue.Name]

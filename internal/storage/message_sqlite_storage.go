@@ -88,7 +88,7 @@ func (s *messageSqliteStorage) PeekMessages() ([]*model.Message, error) {
 	return messages, nil
 }
 
-func (s *messageSqliteStorage) ConsumeMessages() ([]*model.ConsumeMessageResponse, error) {
+func (s *messageSqliteStorage) consumeMessages(expirationMinutes int) ([]*model.ConsumeMessageResponse, error) {
 	var consumeMessages []*model.ConsumeMessageResponse
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -107,7 +107,7 @@ func (s *messageSqliteStorage) ConsumeMessages() ([]*model.ConsumeMessageRespons
 			ids[idx] = message.Id
 		}
 
-		lockUntil := time.Now().Add(time.Minute)
+		lockUntil := time.Now().Add(time.Duration(expirationMinutes) * time.Minute)
 
 		dbRes := tx.Model(&model.Message{}).Where("id in ?", ids).Updates(map[string]interface{}{"status": model.MessageStatusProcessing, "lock_until": lockUntil})
 
@@ -131,6 +131,14 @@ func (s *messageSqliteStorage) ConsumeMessages() ([]*model.ConsumeMessageRespons
 	}
 
 	return consumeMessages, nil
+}
+
+func (s *messageSqliteStorage) ConsumeMessages() ([]*model.ConsumeMessageResponse, error) {
+	return s.consumeMessages(1)
+}
+
+func (s *messageSqliteStorage) ConsumeMessagesWithCustomTime(timeInMinutes int) ([]*model.ConsumeMessageResponse, error) {
+	return s.consumeMessages(timeInMinutes)
 }
 
 func (s *messageSqliteStorage) ConfirmMessagesByIds(messageIds []string) *MessageStorageError {
@@ -186,6 +194,7 @@ func (s *messageSqliteStorage) GetMoreTimeByIds(amount int, messageIds []string)
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		messages, err := getMessagesByIds(tx, messageIds)
+		idsToUpdate := make([]string, 0, len(messageIds))
 
 		if err != nil {
 			return err
@@ -194,13 +203,11 @@ func (s *messageSqliteStorage) GetMoreTimeByIds(amount int, messageIds []string)
 		idDict := make(map[string]bool)
 
 		for _, message := range messages {
-			if message.Status == model.MessageStatusProcessed {
-				return NewMessageStorageError(fmt.Sprintf("message with id %s already processed", message.Id), ErrMessageAlreadyProcessed)
-			}
 			if message.Status == model.MessageStatusInQueue {
 				return NewMessageStorageError(fmt.Sprintf("message with id %s is still in queue and not being processed", message.Id), ErrMessageIsNotInProcessingState)
 			}
 			idDict[message.Id] = true
+			idsToUpdate = append(idsToUpdate, message.Id)
 		}
 
 		for _, messageId := range messageIds {
@@ -211,7 +218,7 @@ func (s *messageSqliteStorage) GetMoreTimeByIds(amount int, messageIds []string)
 
 		lockUntil := time.Now().Add(time.Minute * time.Duration(amount))
 
-		res := updateLockUntilByIdsTransaction(tx, messageIds, lockUntil)
+		res := updateLockUntilByIdsTransaction(tx, idsToUpdate, lockUntil)
 
 		if res.Error != nil {
 			return NewMessageStorageError(res.Error.Error(), ErrInternalError)
