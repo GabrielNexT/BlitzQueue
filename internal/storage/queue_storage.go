@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/oklog/ulid/v2"
+	"github.com/patrickmn/go-cache"
 	"github.com/pelletier/go-toml/v2"
 	"log"
 	"os"
@@ -29,10 +30,13 @@ type QueueStorage interface {
 }
 
 type queueStorage struct {
+	storageCache *cache.Cache
 }
 
 func NewQueueStorage() QueueStorage {
-	return &queueStorage{}
+	return &queueStorage{
+		storageCache: cache.New(5*time.Minute, 10*time.Minute),
+	}
 }
 
 func (s *queueStorage) CreateQueue(q *model.Queue) (*model.Queue, error) {
@@ -81,11 +85,19 @@ func (s *queueStorage) GetQueueByName(name string) (*model.Queue, error) {
 }
 
 func (s *queueStorage) GetMessageStorage(queue *model.Queue) (MessageStorage, error) {
+	queueId := queue.Id
+
+	if value, ok := s.storageCache.Get(queueId); ok {
+		return value.(MessageStorage), nil
+	}
+
 	messageStorage, err := NewMessageSqliteStorage(queue)
 
 	if err != nil {
 		return nil, err
 	}
+
+	s.storageCache.Set(queueId, messageStorage, cache.DefaultExpiration)
 
 	return messageStorage, nil
 }

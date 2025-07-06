@@ -5,3 +5,7 @@ run-queue:
 
 test:
 	go test ./...
+
+
+run-gen-test:
+	go run cmd/generate_test_data.go
