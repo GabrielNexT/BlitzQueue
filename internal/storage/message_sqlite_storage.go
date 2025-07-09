@@ -1,15 +1,19 @@
 package storage
 
 import (
-	"BlitzQueue/internal/logger"
 	"BlitzQueue/internal/model"
+	"embed"
 	"fmt"
+	"github.com/doug-martin/goqu/v9"
+	"github.com/pressly/goose/v3"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	"log/slog"
 	"os"
 	"time"
 )
+
+//go:embed migrations/sqlite/*.sql
+var embedMigrations embed.FS
 
 const MessagesPath = "bq_data/messages"
 
@@ -27,22 +31,31 @@ type messageSqliteStorage struct {
 
 func NewMessageSqliteStorage(queue *model.Queue) (MessageStorage, error) {
 	dbPath := fmt.Sprintf("%s/%s.db", MessagesPath, queue.Name)
-	log := logger.GetLogger()
 
-	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	gdb, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
 
 	if err != nil {
 		panic(err)
 	}
 
-	err = db.AutoMigrate(&model.Message{})
+	db, err := gdb.DB()
 
 	if err != nil {
-		log.Error("failed to migrate messages in sqlite", slog.String("error", err.Error()), slog.String("queue", queue.Name))
+		panic(err)
+	}
+
+	goose.SetBaseFS(embedMigrations)
+
+	if err := goose.SetDialect("sqlite"); err != nil {
+		panic(err)
+	}
+
+	if err := goose.Up(db, "migrations/sqlite"); err != nil {
+		panic(err)
 	}
 
 	return &messageSqliteStorage{
-		db:    db,
+		db:    gdb,
 		queue: queue,
 	}, nil
 }
@@ -67,7 +80,13 @@ func (s *messageSqliteStorage) PushMessages(messages ...*model.Message) error {
 			return nil
 		}
 
-		result := tx.Create(messages)
+		sqlInsert := createSqlInsert(messages...)
+
+		result := tx.Exec(sqlInsert)
+
+		if result.Error != nil {
+			fmt.Println(result.Error.Error())
+		}
 
 		return result.Error
 	})
@@ -299,4 +318,28 @@ func updateLockUntilByIdsTransaction(db *gorm.DB, messageIds []string, lockUntil
 
 func updateStatusByMessagesIds(db *gorm.DB, messageIds []string, status model.MessageStatus) *gorm.DB {
 	return db.Model(&model.Message{}).Where("id in ?", messageIds).Update("status", status)
+}
+
+func createSqlInsert(messages ...*model.Message) string {
+
+	var values [][]interface{}
+	for _, message := range messages {
+		values = append(values, []interface{}{
+			message.Id,
+			message.QueueId,
+			message.Data,
+			message.Status,
+			message.Priority,
+			message.Hash,
+			message.SubQueue,
+			message.LockUntil,
+		})
+	}
+
+	ds := goqu.Insert("messages").
+		Cols("id", "queue_id", "data", "status", "priority", "hash", "sub_queue", "lock_until").
+		Vals(values...)
+
+	insertSQL, _, _ := ds.ToSQL()
+	return insertSQL
 }
