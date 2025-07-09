@@ -4,17 +4,17 @@ import (
 	"BlitzQueue/internal/logger"
 	"BlitzQueue/internal/model"
 	"BlitzQueue/internal/storage"
-	"github.com/gin-gonic/gin"
+	"github.com/gofiber/fiber/v2"
 	"log/slog"
 )
 
-func (s *queueService) ExtendMessageTime(c *gin.Context) {
+func (s *queueService) ExtendMessageTime(c *fiber.Ctx) error {
 	log := logger.GetLogger()
 	queue, err := s.getQueueByNameFromContext(c)
 
 	if err != nil {
 		log.Error("error getting queue from context")
-		return
+		return err
 	}
 
 	log = log.With(slog.String("queueName", queue.Name))
@@ -26,37 +26,37 @@ func (s *queueService) ExtendMessageTime(c *gin.Context) {
 		httpError := model.CreateInternalServerError("error getting message storage")
 		model.ErrorResponse(c, httpError)
 		log.Error("error getting message storage")
-		return
+		return err
 	}
 
 	log.Debug("got storage for queue")
 
 	var request model.ExtendMessageTimeRequest
 
-	err = c.BindJSON(&request)
+	err = c.BodyParser(&request)
 
 	if err != nil {
 		log.Error("error parsing request body", slog.String("error", err.Error()))
 		httpError := model.CreateInternalServerError("error parsing request body")
 		model.ErrorResponse(c, httpError)
-		return
+		return err
 	}
 
 	storageError := queueStorage.GetMoreTimeByIds(1, request.MessageIds)
 
 	if storageError == nil {
-		c.JSON(200, nil)
-		return
+		_ = c.SendStatus(200)
+		return err
 	}
 
 	if storageError.Type == storage.ErrMessageDoesNotExist {
 		httpError := model.CreateNotFoundError(storageError.Error())
 		model.ErrorResponse(c, httpError)
-		return
+		return err
 	}
 
 	log.Error("error extending time", slog.String("error", storageError.Error()))
 	httpError := model.CreateInternalServerError(storageError.Message)
 	model.ErrorResponse(c, httpError)
-	return
+	return nil
 }

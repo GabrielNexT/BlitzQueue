@@ -3,17 +3,17 @@ package service
 import (
 	"BlitzQueue/internal/logger"
 	"BlitzQueue/internal/model"
-	"github.com/gin-gonic/gin"
+	"github.com/gofiber/fiber/v2"
 	"log/slog"
 )
 
-func (s *queueService) PeekMessages(c *gin.Context) {
+func (s *queueService) PeekMessages(c *fiber.Ctx) error {
 	log := logger.GetLogger()
 	queue, err := s.getQueueByNameFromContext(c)
 
 	if err != nil {
 		log.Error("error getting queue from context")
-		return
+		return err
 	}
 
 	log = log.With(slog.String("queueName", queue.Name))
@@ -25,7 +25,7 @@ func (s *queueService) PeekMessages(c *gin.Context) {
 		httpError := model.CreateInternalServerError("error getting message storage")
 		model.ErrorResponse(c, httpError)
 		log.Error("error getting message storage")
-		return
+		return err
 	}
 
 	log.Debug("got storage for queue")
@@ -35,8 +35,9 @@ func (s *queueService) PeekMessages(c *gin.Context) {
 	if err != nil {
 		httpError := model.CreateInternalServerError("error peeking messages")
 		model.ErrorResponse(c, httpError)
-		return
+		return err
 	}
 
-	c.JSON(200, data)
+	_ = c.Status(200).JSON(data)
+	return nil
 }

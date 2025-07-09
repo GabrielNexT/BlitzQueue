@@ -2,19 +2,19 @@ package service
 
 import (
 	"BlitzQueue/internal/model"
-	"github.com/gin-gonic/gin"
+	"github.com/gofiber/fiber/v2"
 	"strings"
 )
 
-func (s *queueService) CreateQueue(c *gin.Context) {
+func (s *queueService) CreateQueue(c *fiber.Ctx) error {
 	request := model.CreateQueueRequest{}
 
-	err := c.ShouldBindJSON(&request)
+	err := c.BodyParser(&request)
 
 	if err != nil {
 		httpError := model.CreateBadRequestError("failed to bind request")
 		model.ErrorResponse(c, httpError)
-		return
+		return err
 	}
 
 	// TODO: Create a regex to validate the name
@@ -25,7 +25,7 @@ func (s *queueService) CreateQueue(c *gin.Context) {
 	if q != nil {
 		httpError := model.CreateBadRequestError("queue already exist")
 		model.ErrorResponse(c, httpError)
-		return
+		return err
 	}
 
 	queue := &model.Queue{
@@ -41,5 +41,6 @@ func (s *queueService) CreateQueue(c *gin.Context) {
 		model.ErrorResponse(c, httpError)
 	}
 
-	c.JSON(200, q)
+	_ = c.Status(200).JSON(q)
+	return nil
 }

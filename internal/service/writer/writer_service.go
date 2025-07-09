@@ -14,7 +14,7 @@ import (
 )
 
 const DefaultBufferSize = 10000
-const defaultBatchSize = 50000
+const defaultBatchSize = 10000
 
 var emptyBufferErr = errors.New("queue buffer is empty")
 

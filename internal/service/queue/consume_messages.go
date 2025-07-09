@@ -3,17 +3,17 @@ package service
 import (
 	"BlitzQueue/internal/logger"
 	"BlitzQueue/internal/model"
-	"github.com/gin-gonic/gin"
+	"github.com/gofiber/fiber/v2"
 	"log/slog"
 )
 
-func (s *queueService) ConsumeMessages(c *gin.Context) {
+func (s *queueService) ConsumeMessages(c *fiber.Ctx) error {
 	log := logger.GetLogger()
 	queue, err := s.getQueueByNameFromContext(c)
 
 	if err != nil {
 		log.Error("error getting queue from context")
-		return
+		return err
 	}
 
 	log = log.With(slog.String("queueName", queue.Name))
@@ -24,8 +24,9 @@ func (s *queueService) ConsumeMessages(c *gin.Context) {
 	if err != nil {
 		httpError := model.CreateInternalServerError("error consuming messages")
 		model.ErrorResponse(c, httpError)
-		return
+		return err
 	}
 
-	c.JSON(200, messages)
+	_ = c.Status(200).JSON(messages)
+	return nil
 }

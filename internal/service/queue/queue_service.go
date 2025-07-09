@@ -4,17 +4,17 @@ import (
 	"BlitzQueue/internal/service/reader"
 	"BlitzQueue/internal/service/writer"
 	"BlitzQueue/internal/storage"
-	"github.com/gin-gonic/gin"
+	"github.com/gofiber/fiber/v2"
 )
 
 type QueueService interface {
-	CreateQueue(c *gin.Context)
-	GetQueueByName(c *gin.Context)
-	PushMessages(c *gin.Context)
-	PeekMessages(c *gin.Context)
-	ConsumeMessages(c *gin.Context)
-	ConfirmMessages(c *gin.Context)
-	ExtendMessageTime(c *gin.Context)
+	CreateQueue(c *fiber.Ctx) error
+	GetQueueByName(c *fiber.Ctx) error
+	PushMessages(c *fiber.Ctx) error
+	PeekMessages(c *fiber.Ctx) error
+	ConsumeMessages(c *fiber.Ctx) error
+	ConfirmMessages(c *fiber.Ctx) error
+	ExtendMessageTime(c *fiber.Ctx) error
 }
 type queueService struct {
 	queueStorage  storage.QueueStorage

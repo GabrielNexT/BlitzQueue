@@ -4,23 +4,24 @@ import (
 	"BlitzQueue/internal/model"
 	"BlitzQueue/internal/storage"
 	"errors"
-	"github.com/gin-gonic/gin"
+	"github.com/gofiber/fiber/v2"
 	"strings"
 	"unicode"
 )
 
-func (s *queueService) GetQueueByName(c *gin.Context) {
+func (s *queueService) GetQueueByName(c *fiber.Ctx) error {
 	queue, err := s.getQueueByNameFromContext(c)
 
 	if err != nil {
-		return
+		return err
 	}
 
-	c.JSON(200, queue)
+	_ = c.JSON(queue)
+	return nil
 }
 
-func (s *queueService) getQueueByNameFromContext(c *gin.Context) (*model.Queue, error) {
-	queueName := c.Param("name")
+func (s *queueService) getQueueByNameFromContext(c *fiber.Ctx) (*model.Queue, error) {
+	queueName := c.Params("name")
 
 	if err := validateQueueName(queueName); err != nil {
 		httpError := model.CreateBadRequestError(err.Error())

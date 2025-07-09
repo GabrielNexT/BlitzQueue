@@ -2,7 +2,7 @@ package model
 
 import (
 	"errors"
-	"github.com/gin-gonic/gin"
+	"github.com/gofiber/fiber/v2"
 )
 
 type HttpError struct {
@@ -39,10 +39,13 @@ func CreateInternalServerError(message string) HttpError {
 	}
 }
 
-func ErrorResponse(ctx *gin.Context, error HttpError) {
-	ctx.JSON(error.StatusCode, gin.H{
+func ErrorResponse(ctx *fiber.Ctx, error HttpError) {
+	err := ctx.Status(error.StatusCode).JSON(fiber.Map{
 		"message":    error.Message,
 		"statusCode": error.StatusCode,
 		"code":       error.Code,
 	})
+	if err != nil {
+		return
+	}
 }

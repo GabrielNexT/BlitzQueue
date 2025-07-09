@@ -6,7 +6,7 @@ import (
 	"BlitzQueue/internal/service/writer"
 	"BlitzQueue/internal/storage"
 	"context"
-	"github.com/gin-gonic/gin"
+	"github.com/gofiber/fiber/v2"
 	"os"
 	"os/signal"
 	"syscall"
@@ -21,19 +21,19 @@ func main() {
 	readerService := reader.NewReaderService(ctx, queueStorage)
 	queueService := service.NewQueueService(queueStorage, writerService, readerService)
 
-	router := gin.Default()
+	app := fiber.New()
 
-	router.POST("/queue", queueService.CreateQueue)
-	router.GET("/queue/:name", queueService.GetQueueByName)
-	router.POST("/queue/:name/push", queueService.PushMessages)
-	router.GET("/queue/:name/peek", queueService.PeekMessages)
-	router.GET("/queue/:name/consume", queueService.ConsumeMessages)
-	router.POST("/queue/:name/confirm", queueService.ConfirmMessages)
-	router.POST("/queue/:name/extend", queueService.ExtendMessageTime)
+	app.Post("/queue", queueService.CreateQueue)
+	app.Get("/queue/:name", queueService.GetQueueByName)
+	app.Post("/queue/:name/push", queueService.PushMessages)
+	app.Get("/queue/:name/peek", queueService.PeekMessages)
+	app.Get("/queue/:name/consume", queueService.ConsumeMessages)
+	app.Post("/queue/:name/confirm", queueService.ConfirmMessages)
+	app.Post("/queue/:name/extend", queueService.ExtendMessageTime)
 
 	gracefulShutdown(ctx, writerService)
 
-	err := router.Run(":52525")
+	err := app.Listen(":52525")
 
 	if err != nil {
 		panic(err)

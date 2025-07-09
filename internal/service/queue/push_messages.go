@@ -3,19 +3,19 @@ package service
 import (
 	"BlitzQueue/internal/logger"
 	"BlitzQueue/internal/model"
-	"github.com/gin-gonic/gin"
+	"github.com/gofiber/fiber/v2"
 	"log/slog"
 )
 
 type pushMessageOkResponse struct{}
 
-func (s *queueService) PushMessages(c *gin.Context) {
+func (s *queueService) PushMessages(c *fiber.Ctx) error {
 	log := logger.GetLogger()
 	queue, err := s.getQueueByNameFromContext(c)
 
 	if err != nil {
 		log.Error("error getting queue from context")
-		return
+		return err
 	}
 
 	log = log.With(slog.String("queueName", queue.Name))
@@ -27,19 +27,19 @@ func (s *queueService) PushMessages(c *gin.Context) {
 		httpError := model.CreateInternalServerError("error getting message storage")
 		model.ErrorResponse(c, httpError)
 		log.Error("error getting message storage")
-		return
+		return err
 	}
 
 	log.Debug("got storage for queue")
 	var messagesRequest []model.CreateMessageRequest
 
-	err = c.BindJSON(&messagesRequest)
+	err = c.BodyParser(&messagesRequest)
 
 	if err != nil {
 		log.Error("error parsing request body", slog.String("error", err.Error()))
 		httpError := model.CreateInternalServerError("error parsing request body")
 		model.ErrorResponse(c, httpError)
-		return
+		return err
 	}
 
 	messagesToPush := make([]*model.Message, len(messagesRequest))
@@ -53,8 +53,9 @@ func (s *queueService) PushMessages(c *gin.Context) {
 	if err != nil {
 		httpError := model.CreateInternalServerError("error pushing messages")
 		model.ErrorResponse(c, httpError)
-		return
+		return err
 	}
 
-	c.JSON(200, pushMessageOkResponse{})
+	_ = c.Status(200).JSON(pushMessageOkResponse{})
+	return nil
 }
