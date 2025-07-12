@@ -95,7 +95,6 @@ func (s *messageSqliteStorage) PushMessages(messages ...*model.Message) error {
 
 func (s *messageSqliteStorage) PeekMessages() ([]*model.Message, error) {
 	messages, err := s.getNextMessages(s.db)
-
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +108,6 @@ func (s *messageSqliteStorage) PeekMessages() ([]*model.Message, error) {
 
 func (s *messageSqliteStorage) consumeMessages(expirationMinutes int) ([]*model.ConsumeMessageResponse, error) {
 	var consumeMessages []*model.ConsumeMessageResponse
-
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		messages, err := s.getNextMessages(tx)
 

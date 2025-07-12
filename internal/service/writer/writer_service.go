@@ -14,7 +14,7 @@ import (
 )
 
 const DefaultBufferSize = 10000
-const defaultBatchSize = 10000
+const defaultBatchSize = 50000
 
 var emptyBufferErr = errors.New("queue buffer is empty")
 
@@ -71,7 +71,7 @@ func (s *writerService) PushMessages(queue *model.Queue, messages ...*model.Mess
 }
 
 func (s *writerService) flushMessagesPeriodically(queue *model.Queue) {
-	timeInterval := time.Duration(250 + rand.Intn(200))
+	timeInterval := time.Duration(250 + rand.Intn(100))
 
 	ticker := time.NewTicker(timeInterval * time.Millisecond)
 
