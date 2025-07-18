@@ -8,6 +8,8 @@ import (
 	"github.com/pressly/goose/v3"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
+	"log"
 	"os"
 	"time"
 )
@@ -32,7 +34,18 @@ type messageSqliteStorage struct {
 func NewMessageSqliteStorage(queue *model.Queue) (MessageStorage, error) {
 	dbPath := fmt.Sprintf("%s/%s.db", MessagesPath, queue.Name)
 
-	gdb, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	newLogger := logger.New(
+		log.New(os.Stdout, "\r\n", log.LstdFlags), // io writer
+		logger.Config{
+			SlowThreshold:             5 * time.Second, // Slow SQL threshold
+			LogLevel:                  logger.Silent,   // Log level
+			IgnoreRecordNotFoundError: true,            // Ignore ErrRecordNotFound error for logger
+			ParameterizedQueries:      true,            // Don't include params in the SQL log
+			Colorful:                  false,           // Disable color
+		},
+	)
+
+	gdb, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{Logger: newLogger})
 
 	if err != nil {
 		panic(err)
