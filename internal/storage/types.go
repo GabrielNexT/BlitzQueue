@@ -10,6 +10,7 @@ type MessageStorage interface {
 	ConsumeMessagesWithCustomTime(minutes int) ([]*model.ConsumeMessageResponse, error)
 	ConfirmMessagesByIds(messageIds []string) *MessageStorageError
 	GetMoreTimeByIds(minutes int, messageIds []string) *MessageStorageError
+	CleanConsumedMessages() error
 }
 
 type MessageStorageErrorType int8

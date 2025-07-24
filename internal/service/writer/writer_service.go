@@ -68,10 +68,13 @@ func (s *writerService) flushMessagesPeriodically(queue *model.Queue) {
 	log := s.log.With(slog.String("queueName", queue.Name))
 	timeInterval := time.Duration(500 + rand.Intn(100))
 
-	ticker := time.NewTicker(timeInterval * time.Millisecond)
+	flushTicker := time.NewTicker(timeInterval * time.Millisecond)
+	cleanTicker := time.NewTicker(5 * time.Minute)
+	emptyCounter := 0
 
 	log.Info("Listening for messages on channel")
 	messagesToInsert := make([]*model.Message, 0, defaultBatchSize)
+
 	for {
 		select {
 		case message, ok := <-s.messageChan[queue.Name]:
@@ -84,13 +87,27 @@ func (s *writerService) flushMessagesPeriodically(queue *model.Queue) {
 			if len(messagesToInsert) >= defaultBatchSize {
 				s.flushMessages(queue, messagesToInsert)
 				messagesToInsert = make([]*model.Message, 0, defaultBatchSize)
-				ticker.Reset(timeInterval * time.Millisecond)
+				flushTicker.Reset(timeInterval * time.Millisecond)
 			}
-		case <-ticker.C:
+		case <-flushTicker.C:
+			if len(messagesToInsert) == 0 {
+				emptyCounter++
+				if emptyCounter >= 1000 {
+					log.Info("Empty channel for 100 times, closing channel")
+					close(s.messageChan[queue.Name])
+					delete(s.messageChan, queue.Name)
+					return
+				}
+				continue
+			}
 			s.flushMessages(queue, messagesToInsert)
 			messagesToInsert = make([]*model.Message, 0, defaultBatchSize)
+		case <-cleanTicker.C:
+			log.Info("cleaning up")
+			s.CleanProcessedMessages(queue)
 		}
 	}
+
 }
 
 func (s *writerService) flushMessages(queue *model.Queue, messages []*model.Message) {
@@ -111,6 +128,22 @@ func (s *writerService) flushMessages(queue *model.Queue, messages []*model.Mess
 	err = queueStorage.PushMessages(messages...)
 	if err != nil {
 		log.Error("error pushing messages to storage", slog.String("error", err.Error()))
+	}
+}
+
+func (s *writerService) CleanProcessedMessages(queue *model.Queue) {
+	log := s.log.With(slog.String("queueName", queue.Name))
+
+	queueStorage, err := s.queueStorage.GetMessageStorage(queue)
+
+	if err != nil {
+		panic(err)
+	}
+
+	err = queueStorage.CleanConsumedMessages()
+
+	if err != nil {
+		log.Error("error cleaning processed messages", slog.String("error", err.Error()))
 	}
 }
 

@@ -264,6 +264,13 @@ func (s *messageSqliteStorage) GetMoreTimeByIds(amount int, messageIds []string)
 	return nil
 }
 
+func (s *messageSqliteStorage) CleanConsumedMessages() error {
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		res := tx.Where("status = ?", model.MessageStatusProcessed).Delete(&model.Message{})
+		return res.Error
+	})
+}
+
 func (s *messageSqliteStorage) GetType() string {
 	return "sqlite"
 }
