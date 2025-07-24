@@ -69,7 +69,7 @@ func (s *writerService) flushMessagesPeriodically(queue *model.Queue) {
 	timeInterval := time.Duration(500 + rand.Intn(100))
 
 	flushTicker := time.NewTicker(timeInterval * time.Millisecond)
-	cleanTicker := time.NewTicker(5 * time.Second)
+	cleanTicker := time.NewTicker(5 * time.Minute)
 	emptyCounter := 0
 
 	log.Info("Listening for messages on channel")
