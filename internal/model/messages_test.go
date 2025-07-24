@@ -2,6 +2,7 @@ package model
 
 import (
 	"BlitzQueue/internal/util"
+	"fmt"
 	"github.com/oklog/ulid/v2"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -196,4 +197,11 @@ func TestRemoveDuplicatesByHash(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+func TestCreateOldMessageId(t *testing.T) {
+	oldMessageId := CreateOldMessageId()
+	fmt.Println(oldMessageId)
+	assert.NotEmpty(t, oldMessageId)
+	assert.Less(t, oldMessageId, ulid.Make().String())
 }

@@ -142,3 +142,8 @@ func FilterUniqueMessages(messages []*Message, existingMessages []*Message, queu
 
 	return filteredMessages
 }
+
+func CreateOldMessageId() string {
+	ts := ulid.Timestamp(time.Now().Add(-1 * 7 * 24 * time.Hour))
+	return ulid.MustNew(ts, nil).String()
+}
