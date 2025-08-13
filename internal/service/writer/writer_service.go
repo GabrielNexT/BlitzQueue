@@ -5,7 +5,6 @@ import (
 	"BlitzQueue/internal/model"
 	"BlitzQueue/internal/storage"
 	"context"
-	"github.com/gammazero/deque"
 	"log/slog"
 	"math/rand"
 	"sync"
@@ -20,10 +19,9 @@ type WriterService interface {
 }
 
 type writerService struct {
-	ctx context.Context
 	sync.Mutex
+	ctx          context.Context
 	queueStorage storage.QueueStorage
-	buffer       map[string]*deque.Deque[*model.Message]
 	messageChan  map[string]chan *model.Message
 	log          *slog.Logger
 	doneChan     chan bool
@@ -33,7 +31,6 @@ func NewWriterService(ctx context.Context, queueStorage storage.QueueStorage) Wr
 	writer := &writerService{
 		ctx:          ctx,
 		queueStorage: queueStorage,
-		buffer:       make(map[string]*deque.Deque[*model.Message]),
 		log:          logger.GetLogger(),
 		doneChan:     make(chan bool, 1),
 		messageChan:  make(map[string]chan *model.Message),
@@ -52,10 +49,13 @@ func (s *writerService) PushMessages(queue *model.Queue, messages ...*model.Mess
 		queueChan := make(chan *model.Message)
 		s.messageChan[queue.Name] = queueChan
 		queueChannel = queueChan
+		s.Unlock()
 		go s.flushMessagesPeriodically(queue)
 		log.Info("created new channel for queue")
 	}
-	s.Unlock()
+	if ok {
+		s.Unlock()
+	}
 
 	for _, message := range messages {
 		queueChannel <- message
@@ -75,9 +75,13 @@ func (s *writerService) flushMessagesPeriodically(queue *model.Queue) {
 	log.Info("Listening for messages on channel")
 	messagesToInsert := make([]*model.Message, 0, defaultBatchSize)
 
+	s.Lock()
+	queueChannel := s.messageChan[queue.Name]
+	s.Unlock()
+
 	for {
 		select {
-		case message, ok := <-s.messageChan[queue.Name]:
+		case message, ok := <-queueChannel:
 			if !ok {
 				log.Info("channel closed")
 				s.flushMessages(queue, messagesToInsert)
@@ -94,7 +98,7 @@ func (s *writerService) flushMessagesPeriodically(queue *model.Queue) {
 				emptyCounter++
 				if emptyCounter >= 1000 {
 					log.Info("Empty channel for 100 times, closing channel")
-					close(s.messageChan[queue.Name])
+					close(queueChannel)
 					delete(s.messageChan, queue.Name)
 					return
 				}
