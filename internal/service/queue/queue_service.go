@@ -4,12 +4,14 @@ import (
 	"BlitzQueue/internal/service/reader"
 	"BlitzQueue/internal/service/writer"
 	"BlitzQueue/internal/storage"
+
 	"github.com/gofiber/fiber/v2"
 )
 
 type QueueService interface {
 	CreateQueue(c *fiber.Ctx) error
 	GetQueueByName(c *fiber.Ctx) error
+	GetAllQueues(c *fiber.Ctx) error
 	PushMessages(c *fiber.Ctx) error
 	PeekMessages(c *fiber.Ctx) error
 	ConsumeMessages(c *fiber.Ctx) error
