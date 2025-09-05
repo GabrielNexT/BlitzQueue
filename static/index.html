@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BlitzQueue Visualizer</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>🚀 BlitzQueue Visualizer</h1>
+
+      <!-- Controls Section -->
+      <div class="controls">
+        <button onclick="visualizer.showCreateQueueModal()">
+          ➕ Create Queue
+        </button>
+        <button onclick="visualizer.sendMessage()" id="sendMessageBtn" disabled>
+          📤 Send Message
+        </button>
+        <button onclick="visualizer.peekMessages()" id="peekBtn" disabled>
+          👀 Peek Messages
+        </button>
+        <button onclick="visualizer.consumeMessages()" id="consumeBtn" disabled>
+          🍽️ Consume Messages
+        </button>
+        <button onclick="visualizer.confirmMessages()" id="confirmBtn" disabled>
+          ✅ Confirm Messages
+        </button>
+      </div>
+
+      <!-- Create Queue Modal -->
+      <div id="createQueueModal" class="modal">
+        <div class="modal-content">
+          <h3>Create New Queue</h3>
+          <div class="form-group">
+            <label>Queue Name:</label>
+            <input type="text" id="queueName" placeholder="Enter queue name" />
+          </div>
+          <div class="form-group">
+            <label>Queue Type:</label>
+            <select id="queueType">
+              <option value="0">Standard (FIFO)</option>
+              <option value="1">FIFO (Ordered)</option>
+              <option value="2">Priority</option>
+              <option value="3">Scheduled</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>
+              <input type="checkbox" id="useUniqueMessage" />
+              Use Unique Messages (Deduplication)
+            </label>
+          </div>
+          <div class="modal-actions">
+            <button onclick="visualizer.createQueue()">Create</button>
+            <button onclick="visualizer.hideCreateQueueModal()">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Send Message Modal -->
+      <div id="sendMessageModal" class="modal">
+        <div class="modal-content">
+          <h3>Send Message</h3>
+          <div class="form-group">
+            <label>Select Queue:</label>
+            <select id="targetQueue">
+              <option value="">Choose a queue...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Message Data:</label>
+            <textarea
+              id="messageData"
+              placeholder="Enter message content"
+            ></textarea>
+          </div>
+          <div class="form-group" id="priorityGroup" style="display: none">
+            <label>Priority (higher = more priority):</label>
+            <input
+              type="number"
+              id="messagePriority"
+              value="0"
+              min="0"
+              max="10"
+            />
+          </div>
+          <div class="form-group" id="subQueueGroup" style="display: none">
+            <label>Sub-Queue (for FIFO):</label>
+            <input
+              type="text"
+              id="messageSubQueue"
+              placeholder="Sub-queue identifier"
+            />
+          </div>
+          <div class="form-group">
+            <label>Deduplication Key (optional):</label>
+            <input
+              type="text"
+              id="deduplicationKey"
+              placeholder="Leave empty to use message data"
+            />
+          </div>
+          <div class="modal-actions">
+            <button onclick="visualizer.sendMessageToQueue()">Send</button>
+            <button onclick="visualizer.hideSendMessageModal()">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Visualization Area -->
+      <div class="blitzqueue-system">
+        <!-- Producer Section -->
+        <div class="producer-section">
+          <h3>📡 Producer</h3>
+          <div class="producer-area" id="producerArea">
+            <div class="producer-status">Ready to send messages</div>
+          </div>
+        </div>
+
+        <!-- Queue Section -->
+        <div class="queue-section">
+          <h3>🗃️ Queues</h3>
+          <div class="queue-container" id="queueContainer">
+            <div class="no-queues">
+              No queues created yet. Click "Create Queue" to start!
+            </div>
+          </div>
+        </div>
+
+        <!-- Consumer Section -->
+        <div class="consumer-section">
+          <h3>🍽️ Consumer</h3>
+          <div class="consumer-area" id="consumerArea">
+            <div class="consumer-status">Waiting for messages to consume</div>
+            <div class="consumed-messages" id="consumedMessages"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Status and Explanation -->
+      <div class="explanation">
+        <h3>📊 System Status</h3>
+        <div id="systemStatus">
+          🎯 Welcome to BlitzQueue! Create a queue to start visualizing message
+          flow.<br />
+          📤 Send messages to see them appear in the queue.<br />
+          👀 Use Peek to view messages without consuming them.<br />
+          🍽️ Use Consume to process messages and see them move to the
+          consumer.<br />
+          ✅ Use Confirm to acknowledge message processing.
+        </div>
+      </div>
+
+      <!-- Selected Queue Info -->
+      <div
+        class="selected-queue-info"
+        id="selectedQueueInfo"
+        style="display: none"
+      >
+        <h4>Selected Queue: <span id="selectedQueueName"></span></h4>
+        <div class="queue-stats">
+          <div>Type: <span id="selectedQueueType"></span></div>
+          <div>Messages: <span id="selectedQueueMessageCount">0</span></div>
+          <div>
+            Unique Messages: <span id="selectedQueueUniqueMessages">No</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="visualizer.js"></script>
+  </body>
+</html>

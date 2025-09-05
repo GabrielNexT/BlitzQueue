@@ -6,14 +6,15 @@ import (
 	"BlitzQueue/internal/service/writer"
 	"BlitzQueue/internal/storage"
 	"context"
-	"github.com/gofiber/fiber/v2"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 )
 
 func main() {
-
 	ctx := createContext()
 
 	queueStorage := storage.NewQueueStorage()
@@ -22,7 +23,15 @@ func main() {
 	queueService := service.NewQueueService(queueStorage, writerService, readerService)
 
 	app := fiber.New()
+	
+	// Adiciona CORS
+	app.Use(cors.New())
+	
+	// Serve arquivos estáticos
+	app.Static("/", "./static")
 
+	// API endpoints
+	app.Get("/queues", queueService.GetAllQueues)
 	app.Post("/queue", queueService.CreateQueue)
 	app.Get("/queue/:name", queueService.GetQueueByName)
 	app.Post("/queue/:name/push", queueService.PushMessages)
@@ -34,11 +43,9 @@ func main() {
 	gracefulShutdown(ctx, writerService)
 
 	err := app.Listen(":52525")
-
 	if err != nil {
 		panic(err)
 	}
-
 }
 
 func createContext() context.Context {
@@ -64,5 +71,4 @@ func gracefulShutdown(ctx context.Context, writerService writer.WriterService) {
 			}
 		}
 	}()
-
 }
