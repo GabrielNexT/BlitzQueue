@@ -68,8 +68,8 @@ func main() {
 			log.Fatal("failed to write messages:", err)
 		}
 	}
-	elapse := time.Since(now)
-	log.Println("wrote", amountOfMessages, "messages in", elapse)
+	elapse1 := time.Since(now)
+	log.Println("wrote", amountOfMessages, "messages in", elapse1)
 
 	if err := conn.Close(); err != nil {
 		log.Fatal("failed to close writer:", err)
@@ -96,6 +96,7 @@ func main() {
 			log.Fatalf("Error closing response body: %v", err)
 		}
 	}
-	elapse = time.Since(now)
-	log.Println("wrote", amountOfMessages, "messages in", elapse)
+	elapse2 := time.Since(now)
+	log.Println("wrote", amountOfMessages, "messages in", elapse2)
+	log.Println("Div", float32(elapse1.Milliseconds())/float32(elapse2.Milliseconds()))
 }
