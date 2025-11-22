@@ -6,10 +6,11 @@ import (
 	"BlitzQueue/internal/service/writer"
 	"BlitzQueue/internal/storage"
 	"context"
-	"github.com/gofiber/fiber/v2"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 func main() {
