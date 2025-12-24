@@ -4,8 +4,9 @@ import (
 	"BlitzQueue/internal/logger"
 	"BlitzQueue/internal/model"
 	"BlitzQueue/internal/storage"
-	"github.com/gofiber/fiber/v2"
 	"log/slog"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 func (s *queueService) ExtendMessageTime(c *fiber.Ctx) error {
@@ -42,7 +43,7 @@ func (s *queueService) ExtendMessageTime(c *fiber.Ctx) error {
 		return err
 	}
 
-	storageError := queueStorage.GetMoreTimeByIds(1, request.MessageIds)
+	storageError := queueStorage.GetMoreTimeByIds(1+queue.MessageLockTimeout, request.MessageIds)
 
 	if storageError == nil {
 		_ = c.SendStatus(200)

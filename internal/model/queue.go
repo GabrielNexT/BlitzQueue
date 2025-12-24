@@ -20,6 +20,7 @@ type Queue struct {
 	CreatedAt               time.Time
 	UseUniqueMessage        bool
 	UniqueMessageTimeWindow int
+	MessageLockTimeout      int
 }
 
 func (q *Queue) CanUseBuffer() bool {

@@ -14,11 +14,12 @@ import (
 
 func setupTestQueue(name string, queueType model.QueueType, useUniqueMessage bool) *model.Queue {
 	return &model.Queue{
-		Id:               ulid.Make().String(),
-		Name:             name,
-		Type:             queueType,
-		CreatedAt:        time.Now(),
-		UseUniqueMessage: useUniqueMessage,
+		Id:                 ulid.Make().String(),
+		Name:               name,
+		Type:               queueType,
+		CreatedAt:          time.Now(),
+		UseUniqueMessage:   useUniqueMessage,
+		MessageLockTimeout: 1, // Default 1 minute lock timeout for tests
 	}
 }
 

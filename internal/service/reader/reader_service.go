@@ -6,11 +6,12 @@ import (
 	"BlitzQueue/internal/storage"
 	"context"
 	"errors"
-	"github.com/gammazero/deque"
 	"log/slog"
 	"math/rand"
 	"sync"
 	"time"
+
+	"github.com/gammazero/deque"
 )
 
 type ReaderService interface {
@@ -118,7 +119,7 @@ func (r *readerService) fillBuffer(queue *model.Queue) error {
 	}
 
 	for buffer.Len() > 0 {
-		if buffer.Front().LockUntil.Sub(time.Now()) <= time.Minute {
+		if time.Until(buffer.Front().LockUntil) <= time.Duration(queue.MessageLockTimeout)*time.Minute {
 			buffer.PopFront()
 			continue
 		}
@@ -156,7 +157,7 @@ func (r *readerService) getMessagesFromBuffer(queue *model.Queue) []*model.Consu
 		}
 		message := buffer.PopFront()
 
-		if message.LockUntil.Sub(time.Now()) <= time.Minute {
+		if time.Until(message.LockUntil) <= time.Duration(queue.MessageLockTimeout)*time.Minute {
 			continue
 		}
 

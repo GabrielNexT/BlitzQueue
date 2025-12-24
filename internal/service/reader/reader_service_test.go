@@ -16,9 +16,10 @@ import (
 
 func setupTestQueue(name string) *model.Queue {
 	return &model.Queue{
-		Id:   ulid.Make().String(),
-		Name: name,
-		Type: model.QueueTypeStandard,
+		Id:                 ulid.Make().String(),
+		Name:               name,
+		Type:               model.QueueTypeStandard,
+		MessageLockTimeout: 1, // Default 1 minute lock timeout for tests
 	}
 }
 

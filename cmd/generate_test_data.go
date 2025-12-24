@@ -20,7 +20,7 @@ type Data struct {
 	Priority *int   `json:"priority,omitempty"`
 }
 
-const amountOfMessages = 1e6
+const amountOfMessages = 1e3
 const topicName = "test-topic"
 const topicPartition = 0
 

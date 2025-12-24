@@ -4,14 +4,15 @@ import (
 	"BlitzQueue/internal/model"
 	"embed"
 	"fmt"
+	"log"
+	"os"
+	"time"
+
 	"github.com/doug-martin/goqu/v9"
 	"github.com/pressly/goose/v3"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
-	"log"
-	"os"
-	"time"
 )
 
 //go:embed migrations/sqlite/*.sql
@@ -164,7 +165,7 @@ func (s *messageSqliteStorage) consumeMessages(expirationMinutes int) ([]*model.
 }
 
 func (s *messageSqliteStorage) ConsumeMessages() ([]*model.ConsumeMessageResponse, error) {
-	return s.consumeMessages(1)
+	return s.consumeMessages(s.queue.MessageLockTimeout)
 }
 
 func (s *messageSqliteStorage) ConsumeMessagesWithCustomTime(timeInMinutes int) ([]*model.ConsumeMessageResponse, error) {
