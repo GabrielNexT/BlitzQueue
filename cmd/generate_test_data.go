@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"time"
 
+	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/segmentio/kafka-go"
 )
 
@@ -20,9 +21,10 @@ type Data struct {
 	Priority *int   `json:"priority,omitempty"`
 }
 
-const amountOfMessages = 1e3
+const amountOfMessages = 1e6
 const topicName = "test-topic"
 const topicPartition = 0
+const rabbitQueueName = "test-queue"
 
 var dataList = make([]Data, amountOfMessages)
 var jsonList = make([]string, amountOfMessages)
@@ -52,13 +54,18 @@ func main() {
 		dataList[i] = data
 	}
 
-	conn, err := kafka.DialLeader(context.Background(), "tcp", "localhost:9092", topicName, topicPartition)
+	sendToKafka()
+	sendToRabbitMQ()
+	sendToBlitzQueue()
+}
 
+func sendToKafka() {
+	conn, err := kafka.DialLeader(context.Background(), "tcp", "localhost:9092", topicName, topicPartition)
 	if err != nil {
 		log.Fatal("failed to dial leader:", err)
 	}
+	defer conn.Close()
 
-	//Send messages to Kafka
 	now := time.Now()
 	for _, msg := range jsonList {
 		_, err = conn.WriteMessages(
@@ -68,16 +75,75 @@ func main() {
 			log.Fatal("failed to write messages:", err)
 		}
 	}
-	elapse1 := time.Since(now)
-	log.Println("wrote", amountOfMessages, "messages in", elapse1)
+	elapsed := time.Since(now)
+	log.Println("[Kafka] wrote", amountOfMessages, "messages in", elapsed)
+}
 
-	if err := conn.Close(); err != nil {
-		log.Fatal("failed to close writer:", err)
+func sendToRabbitMQ() {
+	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+	if err != nil {
+		log.Fatal("failed to connect to RabbitMQ:", err)
+	}
+	defer conn.Close()
+
+	ch, err := conn.Channel()
+	if err != nil {
+		log.Fatal("failed to open a channel:", err)
+	}
+	defer ch.Close()
+
+	// Enable publisher confirms
+	err = ch.Confirm(false)
+	if err != nil {
+		log.Fatal("failed to enable confirms:", err)
 	}
 
-	// Send messages tp Blitzqueue
-	now = time.Now()
+	q, err := ch.QueueDeclare(
+		rabbitQueueName, // name
+		false,           // durable
+		false,           // delete when unused
+		false,           // exclusive
+		false,           // no-wait
+		nil,             // arguments
+	)
+	if err != nil {
+		log.Fatal("failed to declare a queue:", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	now := time.Now()
+	for _, msg := range jsonList {
+		confirmation, err := ch.PublishWithDeferredConfirmWithContext(ctx,
+			"",     // exchange
+			q.Name, // routing key
+			false,  // mandatory
+			false,  // immediate
+			amqp.Publishing{
+				ContentType: "application/json",
+				Body:        []byte(msg),
+			})
+		if err != nil {
+			log.Fatal("failed to publish a message:", err)
+		}
+		// Wait for RabbitMQ to confirm the message was received
+		confirmed, err := confirmation.WaitContext(ctx)
+		if err != nil {
+			log.Fatal("failed to wait for confirmation:", err)
+		}
+		if !confirmed {
+			log.Fatal("message was not confirmed")
+		}
+	}
+	elapsed := time.Since(now)
+	log.Println("[RabbitMQ] wrote", amountOfMessages, "messages in", elapsed)
+}
+
+func sendToBlitzQueue() {
 	client := &http.Client{}
+
+	now := time.Now()
 	for _, msg := range jsonList {
 		req, err := http.NewRequest(http.MethodPost, "http://localhost:52525/queue/teste/push", bytes.NewBuffer([]byte(msg)))
 		if err != nil {
@@ -88,7 +154,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("Error sending request: %v", err)
 		}
-		if resp.StatusCode != http.StatusOK { // Expecting 201 Created for successful POST
+		if resp.StatusCode != http.StatusOK {
 			log.Fatalf("Unexpected status code: %d", resp.StatusCode)
 		}
 		err = resp.Body.Close()
@@ -96,7 +162,6 @@ func main() {
 			log.Fatalf("Error closing response body: %v", err)
 		}
 	}
-	elapse2 := time.Since(now)
-	log.Println("wrote", amountOfMessages, "messages in", elapse2)
-	log.Println("Div", float32(elapse1.Milliseconds())/float32(elapse2.Milliseconds()))
+	elapsed := time.Since(now)
+	log.Println("[BlitzQueue] wrote", amountOfMessages, "messages in", elapsed)
 }
